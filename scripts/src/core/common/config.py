@@ -1,3 +1,4 @@
+from common_and_plotting_functions.config import Direct as GeneralDirect, Keywords as ParentKeywords, FigureDataKeywords
 
 class CoreConstants(object):
     float_type = "float64"
@@ -226,4 +227,42 @@ class ModelKeyword(object):
     sq_adipose = 'sub_q_fat'
     go_adipose = 'gonadal_adipose'
     in_adipose = 'inguinal_adipose'
+
+class Direct(GeneralDirect):
+    common_submitted_raw_data_direct = GeneralDirect.common_submitted_raw_data_direct
+    tmp_data_direct = GeneralDirect.figure_raw_data_direct
+    flux_result_xlsx_filename = f'{ParentKeywords.flux_raw_data}.xlsx'
+    mid_result_xlsx_filename = f'{ParentKeywords.mid_raw_data}.xlsx'
+    solver_description_xlsx_filename = f'{ParentKeywords.solver_descriptions}.xlsx'
+    data_direct = 'scripts/data'
+    output_direct = 'scripts/output'
+    raw_flux_analysis = 'raw_flux_analysis'
+    flux_comparison = 'flux_comparison'
+    predicted_experimental_mid_comparison_direct = 'predicted_experimental_mid_comparison'
+    raw_and_mid_experimental_data_display_direct = 'raw_and_mid_experimental_data_display'
+    metabolic_network_visualization_direct = 'metabolic_network_visualization'
+
+    solution_array = 'solution_array'
+    time_array = 'time_array'
+    loss_array = 'loss_array'
+    result_information = 'result_information'
+    predicted_dict = 'predicted_dict'
+    flux_name_index_dict = 'flux_name_index_dict'
+    experimental_data = 'experimental_data'
+    solution_id_array = 'solution_id_array'
+
+    simulated_input_file_name = 'simulated_flux_vector_and_mid_data.py'
+    simulated_input_file_path = f'scripts/src/simulated_data/{simulated_input_file_name}'
+    simulated_output_py_file_direct = 'scripts/data/simulated_data'
+    simulated_data_direct_name = 'simulated_data'
+    simulated_output_xlsx_file_direct = f'{common_submitted_raw_data_direct}/{simulated_data_direct_name}'
+    simulated_output_pickle_direct = simulated_output_py_file_direct
+
+
+class DataType(object):
+    test = 'test'
+    hct116_cultured_cell_line = 'hct116_cultured_cell_line'
+    renal_carcinoma = 'renal_carcinoma'
+    lung_tumor = 'lung_tumor'
+    colon_cancer = 'colon_cancer'
 

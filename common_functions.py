@@ -80,20 +80,29 @@ def generate_input_emu_data(input_metabolite_dict, input_emu_dict, natural_abund
 
     return input_emu_data_dict
 
-
+# 这个函数的功能需要注意
 def prepare_mid_data_list(graph_results):
     """
     Prepares MID data list from graph_results for base_prediction_function
     """
+
+    # prepare_mid_data_list 函数的主要目的是根据 graph_results 中的图结构信息,
+    # 生成一个完整的 MID（Mass Isotopomer Distribution）数据列表，供后续的预测函数使用.
+
     # Extract EMU index information dictionary
     emu_name_index_size_dict = graph_results[2]
 
+    # 首先, 函数从 graph_results 中提取了 EMU（Elementary Metabolite Unit）索引和大小的映射字典
+    # emu_name_index_size_dict, 并通过以下代码计算出索引的最大值:
     # Find maximum index
     max_index = max([index for _, (index, _) in emu_name_index_size_dict.items()], default=-1)
 
+    # 接着，函数创建了一个索引到大小的映射字典 index_to_size，用于记录每个索引对应的数组大小:
     # Create index to size mapping
     index_to_size = {index: size for _, (index, size) in emu_name_index_size_dict.items()}
 
+    # 然后，函数初始化了一个空列表 complete_predicted_mid_data_list，用于存储完整的 MID 数据
+    # 其长度为最大索引值加 1。每个位置都填充了一个均匀分布的数组，数组的大小由 index_to_size 决定：
     # Initialize list with appropriate distribution arrays
     complete_predicted_mid_data_list = []
     while len(complete_predicted_mid_data_list) <= max_index:
@@ -101,12 +110,16 @@ def prepare_mid_data_list(graph_results):
         initial_values = np.ones(size) / size
         complete_predicted_mid_data_list.append(initial_values)
 
+    # 在完成初始化后，函数将 graph_results[0] 中的输入 EMU 数据复制到 complete_predicted_mid_data_list 的对应位置。
+    # 通过以下代码，确保输入数据覆盖正确的索引位置：
     # Copy input EMU data to correct positions
     input_emu_data_list = graph_results[0]
     for i, data in enumerate(input_emu_data_list):
         if i < len(complete_predicted_mid_data_list):
             complete_predicted_mid_data_list[i] = data
 
+    # 最后，函数返回完整的 MID 数据列表 complete_predicted_mid_data_list，供后续的预测计算使用。
+    # 这个函数的设计确保了 MID 数据的初始化和输入数据的正确映射，同时为未覆盖的索引提供了默认的均匀分布值。
     return complete_predicted_mid_data_list
 
 

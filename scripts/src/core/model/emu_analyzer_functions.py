@@ -97,7 +97,7 @@ def find_overlapped_emu(current_emu, reaction_obj):
                 substrate_name = substrate_node.name
                 # 提取当前循环的底物的碳原子组成列表，如['a','b','c','d']
                 carbon_composition_list = substrate_node.carbon_composition_list
-                # 获取底物系数
+                # 获取底物系数(这一步骤和反应系数的采集和存储有关,属于系数处理的第1步)
                 substrate_coefficient = substrate_node.coefficient
                 # 初始化选中碳原子的标记列表，如果是4个碳的话就是[0,0,0,0]
                 selected_carbon_list = [0] * len(carbon_composition_list)
@@ -122,7 +122,7 @@ def find_overlapped_emu(current_emu, reaction_obj):
                         new_rest_carbon_set -= {carbon_atom_key}
                 # 如果选中碳原子的标记列表 selected_carbon_list 不全为0
                 if sum(selected_carbon_list) > 0:
-                    # 创建新的 EMU 字典，记录底物名称、选中的碳原子和系数，包含底物系数
+                    # 创建新的 EMU 字典, 记录底物名称、选中的碳原子和系数 (这一步包含底物系数)
                     new_emu_dict = {
                         'metabolite_name': substrate_name,
                         'selected_carbon_list': selected_carbon_list,
@@ -184,6 +184,7 @@ def find_overlapped_emu(current_emu, reaction_obj):
     # 它通过递归探索底物中的碳原子映射，确保全面覆盖所有可能性，并保留产物和底物的化学计量信息，为代谢通量分析提供关键数据支持。
     return final_overlapped_emu_list
 
+# 这个函数涉及系数处理的第3步，累积所有反应底物的系数
 def emu_equation_analyzer(
     metabolite_reaction_dict,   # 代谢物作为底物，参与反应的映射字典
     target_metabolite_name_list,    # 目标代谢物名称的列表
@@ -331,7 +332,7 @@ def emu_equation_analyzer(
                     # 将新 EMU 添加到 emu_combination_list。
                     emu_combination_list.append(new_emu_element)
             
-                # 确定最终系数：产物系数与所有底物系数的组合
+                # 这里是反应底物系数确定的第4步, 确定最终系数：产物系数与所有底物系数的组合
                 final_coefficient = product_coefficient
                 # 如果所有底物系数有效，应用组合系数
                 if all_substrate_coefficients_valid and len(emu_combination_list) > 0:
@@ -369,6 +370,90 @@ def emu_equation_analyzer(
     # 按碳原子数量排序并返回结果。
     # 该函数在代谢通量分析中用于追踪碳原子流动，特别适用于大规模代谢网络的建模和分析。
 
+# This function analyzes the dependencies between EMUs in metabolic reactions.
+# It generates dictionaries for EMU dependencies, EMU object indices, and input EMUs.
+# It returns the EMU dependency dictionary, the complete EMU name object index dictionary, and the input EMU dictionary.
+def emu_dependency_analyzer(metabolite_reaction_dict, input_metabolite_name_set, complete_metabolite_dim_dict):
+    emu_name_dependency_dict = {}
+    complete_emu_name_obj_index_dict = {}
+    input_emu_dict = {}
+    processed_emu_name_dict = {}
+    unprocessed_emu_obj_dict = {}
+
+    for metabolite_name in metabolite_reaction_dict.keys():
+        carbon_num = complete_metabolite_dim_dict[metabolite_name]
+        current_emu_obj = EMUElement(metabolite_name, [1] * carbon_num)
+        current_emu_name = current_emu_obj.full_name
+        if current_emu_name not in complete_emu_name_obj_index_dict:
+            complete_emu_name_obj_index_dict[current_emu_name] = (
+                current_emu_obj, len(complete_emu_name_obj_index_dict))
+        unprocessed_emu_obj_dict[current_emu_obj] = None
+
+    while len(unprocessed_emu_obj_dict) > 0:
+        current_emu_obj = unprocessed_emu_obj_dict.keys().__iter__().__next__()
+        current_emu_full_name = current_emu_obj.full_name
+        if current_emu_full_name not in emu_name_dependency_dict:
+            emu_name_dependency_dict[current_emu_full_name] = {}
+        for reaction in metabolite_reaction_dict[current_emu_obj.metabolite_name]:
+            reaction_id = reaction.reaction_id
+            # if reaction_id == CoreConstants.biomass_flux_id:
+            if check_if_biomass_flux(reaction_id):
+                continue
+            overlapped_emu_dict_combination_list = find_overlapped_emu(current_emu_obj, reaction)
+            """
+                Each item in overlapped_emu_dict_combination_list reflects appearance of one target metabolite 
+                in current reaction.
+                Usually len(overlapped_emu_dict_combination_list) == 1 since one metabolite usually appear once 
+                in a reaction. The number > 1 appears when a reaction include metabolite with stoichiometric number
+                > 1. In this case, if one EMU depends on same EMU more than once, their coefficients need to be summed.
+                If depends on different EMUs, all of them need to be recorded
+            """
+            for coefficient, emu_dict_combination in overlapped_emu_dict_combination_list:
+                dependent_emu_list = []
+                for overlapped_emu_dict in emu_dict_combination:
+                    metabolite_name = overlapped_emu_dict['metabolite_name']
+                    selected_carbon_list = overlapped_emu_dict['selected_carbon_list']
+                    # overlapped_emu_name = "{}{}{}".format(
+                    #     metabolite_name, CoreConstants.emu_carbon_list_str_sep, "".join(
+                    #         [str(num) for num in selected_carbon_list]))
+                    overlapped_emu_obj = EMUElement(metabolite_name, selected_carbon_list)
+                    overlapped_emu_name = overlapped_emu_obj.full_name
+                    if metabolite_name in input_metabolite_name_set:
+                        if overlapped_emu_name not in input_emu_dict:
+                            input_emu_dict[overlapped_emu_name] = overlapped_emu_obj
+                    elif overlapped_emu_name not in processed_emu_name_dict:
+                        unprocessed_emu_obj_dict[overlapped_emu_obj] = None
+                    if overlapped_emu_name not in complete_emu_name_obj_index_dict:
+                        complete_emu_name_obj_index_dict[overlapped_emu_name] = (
+                            overlapped_emu_obj, len(complete_emu_name_obj_index_dict))
+                    dependent_emu_list.append(overlapped_emu_obj)
+                if len(dependent_emu_list) > 1:
+                    sorted_dependent_emu_list = sorted(dependent_emu_list, key=lambda x: x.full_name)
+                    sorted_dependent_emu_name_list = [
+                        dependent_emu.full_name for dependent_emu in sorted_dependent_emu_list]
+                    convolution_emu_obj = current_emu_obj.copy_to_convolution(sorted_dependent_emu_list)
+                    convolution_emu_full_name = convolution_emu_obj.full_name
+                    if convolution_emu_full_name not in complete_emu_name_obj_index_dict:
+                        complete_emu_name_obj_index_dict[convolution_emu_full_name] = (
+                            convolution_emu_obj, len(complete_emu_name_obj_index_dict))
+                    if convolution_emu_full_name not in emu_name_dependency_dict:
+                        emu_name_dependency_dict[convolution_emu_full_name] = {
+                            convoluted_emu_name: [(CoreConstants.convolution_id, 1)]
+                            for convoluted_emu_name in sorted_dependent_emu_name_list}
+                    dependent_emu_name = convolution_emu_full_name
+                else:
+                    the_only_dependent_emu = dependent_emu_list[0]
+                    dependent_emu_name = the_only_dependent_emu.full_name
+                if current_emu_full_name not in emu_name_dependency_dict:
+                    emu_name_dependency_dict[current_emu_full_name] = {}
+                if dependent_emu_name not in emu_name_dependency_dict[current_emu_full_name]:
+                    emu_name_dependency_dict[current_emu_full_name][dependent_emu_name] = []
+                emu_name_dependency_dict[current_emu_full_name][dependent_emu_name].append((reaction_id, coefficient))
+
+        processed_emu_name_dict[current_emu_full_name] = None
+        del unprocessed_emu_obj_dict[current_emu_obj]
+
+    return emu_name_dependency_dict, complete_emu_name_obj_index_dict, input_emu_dict
 
 # 总结：
 # 这段代码的核心功能是生成代谢流分析中EMU矩阵方程，用于描述代谢物在代谢网络中的流动。
@@ -447,6 +532,7 @@ def emu_matrix_equation_generator(
             for reaction_id, emu_combination_list, *param_list in mid_equations_list:
                 # flux_value_tensor = flux_tensor[flux_name_index_dict[reaction_id]] * param_list[0]
                 # 获取反应底物系数。如果提供了参数 param_list，则使用第一个参数作为系数，否则默认为1.0
+                # 这是反应底物系数处理的第5步, 系数整合到矩阵方程中:
                 if len(param_list) == 1:
                     coefficient = param_list[0]
                 else:
@@ -465,6 +551,7 @@ def emu_matrix_equation_generator(
                         # 在 matrix_a_flux_location_dict 中记录: 在矩阵 A 的 (analyzed_emu_index, current_layer_emu_col_index) 位置
                         # 反应 reaction_id 贡献了 + coefficient 的值, 这表明 X 向量内部的依赖关系 (非对角线元素)
                         # A 矩阵的系数都是正数, 除了对角线是负数, 所以这里的系数是相加
+                        # 在矩阵A和B中应用反应系数
                         matrix_a_flux_location_dict[
                             (analyzed_emu_index, current_layer_emu_col_index)][reaction_id] += coefficient
                     # Subcase 1.2: 如果源 EMU 在输入和低层次 EMU 列表中, 这意味着源 EMU 是 Y 向量(矩阵) 的一部分
@@ -527,101 +614,4 @@ def emu_matrix_equation_generator(
             matrix_b_col
         )
 
-    return emu_matrix_equation_dict
-
-
-def new_emu_matrix_equation_generator(
-        emu_mid_equations_dict_carbon_num_list,  # 代谢物的同位素分布方程字典，按碳数分组
-        input_emu_dict):
-    """
-    Generates a detailed dictionary of matrix equations for the Elementary Metabolite Unit (EMU)
-    based on provided EMU metabolite information and input EMU data. The key of the returned
-    dictionary corresponds to the carbon number of the EMU, and the value contains detailed
-    information regarding the matrix equations required for metabolic flux analysis.
-
-    :param emu_mid_equations_dict_carbon_num_list: A dictionary where keys are carbon numbers (int)
-        and values are dictionaries containing EMU names (str) mapped to their corresponding
-        mid-equations list. The mid-equations list provides combinations of EMUs identified
-        through reactions, along with coefficients and optional parameters specific to each
-        reaction-contributed combination.
-    :param input_emu_dict: A dictionary where keys are EMU names (str) and values are decoded
-        EMU objects representing detailed attributes and dependencies of each EMU.
-
-    :return: A dictionary where:
-        - The keys are carbon numbers of EMUs (int).
-        - The values are tuples containing:
-            1. A list-like structure (`DictList`) of EMUs in the analyzed layer.
-            2. A list-like structure (`DictList`) of EMUs and lower-layer inputs.
-            3. A nested dictionary mapping indices of analyzed EMUs to reaction identifiers and
-               flux locations within matrix A.
-            4. A nested dictionary mapping indices of lower-layer inputs to reaction identifiers
-               and flux locations within matrix B.
-            5. The integer representing the dimensionality of matrix A.
-            6. The integer representing the number of columns in matrix B.
-    """
-    # complete_emu_object_dict = {emu_name: decode_emu_name(emu_name) for emu_name in input_emu_name_set}
-    complete_emu_object_dict = dict(input_emu_dict)
-    # complete_emu_name_set = set(input_emu_name_set)
-    emu_matrix_equation_dict = {}
-
-    for carbon_num, emu_mid_equations_dict in emu_mid_equations_dict_carbon_num_list.items():
-        this_layer_emu_dict_list = DictList()
-
-        for emu_name in emu_mid_equations_dict.keys():
-            if emu_name not in complete_emu_object_dict:
-                complete_emu_object_dict[emu_name] = decode_emu_name(emu_name)
-            this_layer_emu_dict_list[emu_name] = complete_emu_object_dict[emu_name]
-            # this_layer_emu_dict_list.add(emu_name)
-        # A * x = b * y
-        input_and_lower_layer_emu_dict_list = DictList()
-        # matrix_a_flux_location_dict = defaultdict(lambda: defaultdict(lambda: 0))
-        # matrix_b_flux_location_dict = defaultdict(lambda: defaultdict(lambda: 0))
-        matrix_a_flux_location_dict = DefaultDict(DefaultDict(0))
-        matrix_b_flux_location_dict = DefaultDict(DefaultDict(0))
-
-        for analyzed_emu_name, mid_equations_list in emu_mid_equations_dict.items():
-            analyzed_emu_index = this_layer_emu_dict_list.index(analyzed_emu_name)
-
-            for reaction_id, emu_combination_list, *param_list in mid_equations_list:
-                # flux_value_tensor = flux_tensor[flux_name_index_dict[reaction_id]] * param_list[0]
-                if len(param_list) == 1:
-                    coefficient = param_list[0]
-                else:
-                    coefficient = 1.0
-                if len(emu_combination_list) == 1:
-                    emu_object = emu_combination_list[0]
-                    dependent_emu_name = emu_object.emu_name
-                    if dependent_emu_name in this_layer_emu_dict_list:
-                        current_layer_emu_col_index = this_layer_emu_dict_list.index(dependent_emu_name)
-                        matrix_a_flux_location_dict[
-                            (analyzed_emu_index, current_layer_emu_col_index)][reaction_id] += coefficient
-                    elif dependent_emu_name in complete_emu_object_dict:
-                        input_and_lower_layer_emu_dict_list[dependent_emu_name] = emu_object
-                        current_layer_input_col_index = input_and_lower_layer_emu_dict_list.index(dependent_emu_name)
-                        matrix_b_flux_location_dict[
-                            (analyzed_emu_index, current_layer_input_col_index)][reaction_id] -= coefficient
-                    else:
-                        raise ValueError()
-                else:
-                    for emu_object in emu_combination_list:
-                        dependent_emu_name = emu_object.emu_name
-                        if dependent_emu_name not in complete_emu_object_dict:
-                            raise ValueError()
-                    sorted_emu_combination_list = sorted(emu_combination_list)
-                    dependent_emu_complete_name = CoreConstants.convolution_emu_sep.join(
-                        [emu.full_name for emu in sorted_emu_combination_list])
-                    if dependent_emu_complete_name not in input_and_lower_layer_emu_dict_list:
-                        input_and_lower_layer_emu_dict_list[dependent_emu_complete_name] = sorted_emu_combination_list
-                    current_layer_input_col_index = input_and_lower_layer_emu_dict_list.index(
-                        dependent_emu_complete_name)
-                    matrix_b_flux_location_dict[
-                        (analyzed_emu_index, current_layer_input_col_index)][reaction_id] -= coefficient
-                matrix_a_flux_location_dict[
-                    (analyzed_emu_index, analyzed_emu_index)][reaction_id] -= coefficient
-            # complete_emu_name_set.add(emu_name)
-        matrix_a_dim = len(emu_mid_equations_dict)
-        matrix_b_col = len(input_and_lower_layer_emu_dict_list)
-        emu_matrix_equation_dict[carbon_num] = (
-            this_layer_emu_dict_list, input_and_lower_layer_emu_dict_list,
-            matrix_a_flux_location_dict, matrix_b_flux_location_dict, matrix_a_dim, matrix_b_col)
     return emu_matrix_equation_dict

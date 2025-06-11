@@ -271,3 +271,77 @@ def model_preprocess(
         'composite_reaction_dict': composite_reaction_dict,
         'target_metabolite_name_list': target_metabolite_name_list
     }
+
+def compart_all_metabolites(all_metabolite_name_list, model_compartment_set):
+    compartment_suffix_dict = {
+        compartment_label: '_{}'.format(compartment_label) for compartment_label in model_compartment_set}
+    # complete_compartment_metabolite_dict = defaultdict(lambda: set())
+    complete_tissue_compartment_metabolite_dict = {}
+    metabolite_bare_metabolite_name_dict = {}
+    for current_metabolite_name in all_metabolite_name_list:
+        target_model_compartment = None
+        bare_metabolite_name_with_tissue = None
+        for model_compartment, compartment_suffix in compartment_suffix_dict.items():
+            if current_metabolite_name.endswith(compartment_suffix):
+                target_model_compartment = model_compartment
+                bare_metabolite_name_with_tissue = current_metabolite_name[:-len(compartment_suffix)]
+                break
+        if target_model_compartment is None:
+            bare_metabolite_name_with_tissue = current_metabolite_name
+        if bare_metabolite_name_with_tissue is None:
+            raise ValueError()
+        *tissue_prefix_list, bare_metabolite_name = bare_metabolite_name_with_tissue.split(
+            CoreConstants.specific_tissue_sep)
+        if len(tissue_prefix_list) == 0:
+            tissue_prefix = None
+        else:
+            tissue_prefix = tissue_prefix_list[0]
+        if tissue_prefix not in complete_tissue_compartment_metabolite_dict:
+            complete_tissue_compartment_metabolite_dict[tissue_prefix] = {}
+        if target_model_compartment not in complete_tissue_compartment_metabolite_dict[tissue_prefix]:
+            complete_tissue_compartment_metabolite_dict[tissue_prefix][target_model_compartment] = set()
+        complete_tissue_compartment_metabolite_dict[tissue_prefix][target_model_compartment].add(
+            current_metabolite_name)
+        metabolite_bare_metabolite_name_dict[current_metabolite_name] = bare_metabolite_name
+    return complete_tissue_compartment_metabolite_dict, metabolite_bare_metabolite_name_dict
+
+
+def metabolite_carbon_number_verification(complete_metabolite_dim_dict, metabolite_bare_metabolite_name_dict):
+    bare_metabolite_dim_dict = {}
+    for complete_metabolite_name, metabolite_dim in complete_metabolite_dim_dict.items():
+        bare_metabolite_name = metabolite_bare_metabolite_name_dict[complete_metabolite_name]
+        if bare_metabolite_name in bare_metabolite_dim_dict:
+            current_metabolite_dim = bare_metabolite_dim_dict[bare_metabolite_name]
+            if metabolite_dim != current_metabolite_dim:
+                raise ValueError(
+                    'Dim of new metabolite {} is {}, while the previous dim of metabolite {} is {}'.format(
+                        complete_metabolite_name, metabolite_dim, bare_metabolite_name, current_metabolite_dim))
+        else:
+            bare_metabolite_dim_dict[bare_metabolite_name] = metabolite_dim
+    return bare_metabolite_dim_dict
+
+
+def flux_balance_equation_generator(metabolite_reaction_dict, composite_reaction_dict, flux_name_index_dict):
+    flux_size = len(flux_name_index_dict)
+    metabolite_size = len(metabolite_reaction_dict)
+    composite_reaction_size = len(composite_reaction_dict)
+    complete_size = metabolite_size + composite_reaction_size
+    flux_balance_matrix = np.zeros((complete_size, flux_size))
+    for metabolite_index, (metabolite, (flux_dict_as_substrate, flux_dict_as_product)) in enumerate(
+            metabolite_reaction_dict.items()):
+        for reaction_id, reaction_coefficient in flux_dict_as_substrate.items():
+            flux_index = flux_name_index_dict[reaction_id]
+            flux_balance_matrix[metabolite_index, flux_index] -= reaction_coefficient
+        for reaction_id, reaction_coefficient in flux_dict_as_product.items():
+            flux_index = flux_name_index_dict[reaction_id]
+            flux_balance_matrix[metabolite_index, flux_index] += reaction_coefficient
+    for composite_reaction_row_index, (composite_reaction_id, composite_reaction_obj) in enumerate(
+            composite_reaction_dict.items()):
+        current_row_index = metabolite_size + composite_reaction_row_index
+        composite_flux_index = flux_name_index_dict[composite_reaction_id]
+        flux_balance_matrix[current_row_index, composite_flux_index] -= 1
+        for composite_node_obj in composite_reaction_obj.compose_list:
+            raw_flux_index = flux_name_index_dict[composite_node_obj.reaction_id]
+            flux_balance_matrix[current_row_index, raw_flux_index] += composite_node_obj.coefficient
+    flux_balance_right_side = np.zeros(complete_size)
+    return flux_balance_matrix, flux_balance_right_side
