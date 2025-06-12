@@ -300,32 +300,32 @@ def test_tca_cycle_mfa():
         optimized = optimized_flux[idx] if optimized_flux is not None else initial
         print(f"{flux_name}: {initial:.4f} -> {optimized:.4f}")
 
-    # 获取混合方程信息 nested_mix_equation_dict
-    nested_mix_equation_dict = results.get('nested_mix_equation_dict', {})
-    print(f"\n代谢物混合方程数量: {len(nested_mix_equation_dict)}")
-    for metabolite, equation in list(nested_mix_equation_dict.items())[:3]:  # 仅显示前3个
-        print(f"  - {metabolite}: {equation}")
-
-    # 获取预测的MID数据和目标EMU
-    target_emu_name_list = results.get('target_emu_name_list', [])
-    target_indices = results.get('target_indices', [])
-    predicted_mid_data = results.get('predicted_mid_data', [])
-
-    # 打印部分目标代谢物的预测MID
-    print("\n预测的代谢物MID:")
-    for i, idx in enumerate(target_indices):
-        emu_name = target_emu_name_list[i]
-        print(f"  - {emu_name}: {predicted_mid_data[idx]}")
-
-    # 打印预测与实验MID比较
-    comparison_data = results.get('comparison_data', [])
-    if comparison_data:
-        print("\n预测MID vs 实验MID比较:")
-        for item in comparison_data:
-            print(f"\n{item['model_metabolite']} RMSE: {item['RMSE']:.4f}")
-            print("  预测\t实验")
-            for i in range(len(item['predicted_mid'])):
-                print(f"M+{i}: {item['predicted_mid'][i]:.4f}\t{item['experimental_mid'][i]:.4f}")
+    # # 获取混合方程信息 nested_mix_equation_dict
+    # nested_mix_equation_dict = results.get('nested_mix_equation_dict', {})
+    # print(f"\n代谢物混合方程数量: {len(nested_mix_equation_dict)}")
+    # for metabolite, equation in list(nested_mix_equation_dict.items())[:3]:  # 仅显示前3个
+    #     print(f"  - {metabolite}: {equation}")
+    #
+    # # 获取预测的MID数据和目标EMU
+    # target_emu_name_list = results.get('target_emu_name_list', [])
+    # target_indices = results.get('target_indices', [])
+    # predicted_mid_data = results.get('predicted_mid_data', [])
+    #
+    # # 打印部分目标代谢物的预测MID
+    # print("\n预测的代谢物MID:")
+    # for i, idx in enumerate(target_indices):
+    #     emu_name = target_emu_name_list[i]
+    #     print(f"  - {emu_name}: {predicted_mid_data[idx]}")
+    #
+    # # 打印预测与实验MID比较
+    # comparison_data = results.get('comparison_data', [])
+    # if comparison_data:
+    #     print("\n优化后预测MID vs 质谱实验MID:")
+    #     for item in comparison_data:
+    #         print(f"\n{item['model_metabolite']} RMSE: {item['RMSE']:.4f}")
+    #         print("  预测\t实验")
+    #         for i in range(len(item['predicted_mid'])):
+    #             print(f"M+{i}: {item['predicted_mid'][i]:.4f}\t{item['experimental_mid'][i]:.4f}")
 
     # 10. 返回结果
     # 通过这些修改，我们添加了线性规划初始值生成并使用SLSQP优化算法使预测与实验数据间的loss收敛到最小，同时修复了数据加载问题。

@@ -239,11 +239,30 @@ def convert_loss_operation_list_for_squared_loss(loss_operation_list):
     for item in loss_operation_list:
         # 解包四元组
         mixed_metabolite_name, predicted_mid_index, experimental_mid_data, valid_index_array = item
-        # 如果 experimental_mid_data 是 MIDData 对象，则取其 mid_list
-        if hasattr(experimental_mid_data, 'mid_list'):
+        
+        # 提取实验数据
+        if hasattr(experimental_mid_data, 'mid_list') and experimental_mid_data.mid_list is not None:
             exp_mid_array = np.array(experimental_mid_data.mid_list)
+        elif hasattr(experimental_mid_data, 'data_vector') and experimental_mid_data.data_vector is not None:
+            exp_mid_array = np.array(experimental_mid_data.data_vector)
+        elif hasattr(experimental_mid_data, '__iter__') and not isinstance(experimental_mid_data, str):
+            # 如果是可迭代对象（但不是字符串）
+            exp_mid_array = np.array(list(experimental_mid_data))
         else:
-            exp_mid_array = np.array(experimental_mid_data)
+            # 如果是单个数值，创建1维数组
+            exp_mid_array = np.array([experimental_mid_data])
+        
+        # 确保结果是1维数组
+        if exp_mid_array.ndim == 0:
+            exp_mid_array = exp_mid_array.reshape(-1)
+        elif exp_mid_array.ndim > 1:
+            exp_mid_array = exp_mid_array.flatten()
+            
+        # 验证数组长度和有效索引数组的兼容性
+        if len(valid_index_array) > len(exp_mid_array):
+            # 如果有效索引超出范围，截断到数组长度
+            valid_index_array = valid_index_array[valid_index_array < len(exp_mid_array)]
+        
         # 重新组装四元组
         new_loss_operation_list.append(
             (mixed_metabolite_name, predicted_mid_index, exp_mid_array, valid_index_array)
@@ -971,18 +990,84 @@ def run_mfa_pipeline_with_experimental_data(
 
     metabolite_bare_metabolite_name_dict = dict(zip(model_metabolite_to_standard_name_dict.values(), model_metabolite_to_standard_name_dict.keys()))
 
-    # 构建混合方程 - 处理模型代谢物与实验代谢物之间的映射关系
-    # 这里面要生成 target_metabolite_name_list,然后用在run_mfa_pipeline里面
-    nested_mix_equation_dict, mix_ratio_name_index_dict, mix_ratio_balance_list, updated_specific_flux_range_dict = mixing_equation_constructor(
-        experimental_mid_data_obj_dict=experimental_mid_data_obj_dict,
-        model_target_metabolite_compartment_dict=model_target_metabolite_compartment_dict,
-        model_metabolite_to_standard_name_dict=model_metabolite_to_standard_name_dict,
-        metabolite_bare_metabolite_name_dict=metabolite_bare_metabolite_name_dict,
-        specific_flux_range_dict=specific_flux_range_dict,
-        common_mix_ratio_range=common_mix_ratio_range,
-        mix_ratio_multiplier=mix_ratio_multiplier
-        # list_of_case_name=None # None(默认值) 适用于单组实验数据情况，函数直接处理传入的 experimental_mid_data_obj_dict
-    )
+    # 首先尝试直接映射方法，如果失败则使用mixing_equation_constructor
+    nested_mix_equation_dict = {}
+    mix_ratio_name_index_dict = {}
+    mix_ratio_balance_list = []
+    updated_specific_flux_range_dict = dict(specific_flux_range_dict) if specific_flux_range_dict else {}
+    
+    # 创建匹配的代谢物列表
+    matched_metabolites = []
+    
+    # 尝试直接映射,一般来说这里就可以成功
+    print("尝试直接映射实验代谢物到模型代谢物...")
+    for exp_metabolite_name, exp_mid_data in experimental_mid_data_obj_dict.items():
+        if exp_metabolite_name in user_metabolite_to_standard_name_dict:
+            model_metabolite = user_metabolite_to_standard_name_dict[exp_metabolite_name]
+            if model_metabolite in complete_metabolite_dim_dict:
+                # 直接映射成功
+                nested_mix_equation_dict[exp_metabolite_name] = model_metabolite
+                matched_metabolites.append((exp_metabolite_name, model_metabolite))
+                print(f"  成功映射: {exp_metabolite_name} → {model_metabolite}")
+    
+    # 如果直接映射成功了一些代谢物，则使用简化的混合方程
+    if nested_mix_equation_dict:
+        print(f"使用简化的直接映射，成功映射了 {len(nested_mix_equation_dict)} 个代谢物")
+    else:
+        # 尝试使用完整的mixing_equation_constructor
+        print("直接映射失败，尝试使用完整的mixing_equation_constructor...")
+        
+        # 为实验数据对象添加必要的属性
+        enhanced_experimental_mid_data_obj_dict = {}
+        for exp_name, mid_data in experimental_mid_data_obj_dict.items():
+            # 创建增强的MID数据对象
+            enhanced_mid_data = type('EnhancedMIDData', (), {})()
+            
+            # 复制原有属性
+            for attr in dir(mid_data):
+                if not attr.startswith('_'):
+                    setattr(enhanced_mid_data, attr, getattr(mid_data, attr))
+            
+            # 添加missing属性
+            if not hasattr(enhanced_mid_data, 'excluded_from_mfa'):
+                enhanced_mid_data.excluded_from_mfa = False
+            if not hasattr(enhanced_mid_data, 'combined'):
+                enhanced_mid_data.combined = False
+            if not hasattr(enhanced_mid_data, 'combined_standard_name_list'):
+                enhanced_mid_data.combined_standard_name_list = []
+            if not hasattr(enhanced_mid_data, 'tissue'):
+                enhanced_mid_data.tissue = ['default']  # 默认组织
+            if not hasattr(enhanced_mid_data, 'compartment'):
+                enhanced_mid_data.compartment = ['c']  # 默认细胞质
+            if not hasattr(enhanced_mid_data, 'name'):
+                enhanced_mid_data.name = user_metabolite_to_standard_name_dict.get(exp_name, exp_name)
+            
+            enhanced_experimental_mid_data_obj_dict[exp_name] = enhanced_mid_data
+        
+        try:
+            # 构建混合方程 - 处理模型代谢物与实验代谢物之间的映射关系
+            nested_mix_equation_dict, mix_ratio_name_index_dict, mix_ratio_balance_list, updated_specific_flux_range_dict = mixing_equation_constructor(
+                experimental_mid_data_obj_dict=enhanced_experimental_mid_data_obj_dict,
+                model_target_metabolite_compartment_dict=model_target_metabolite_compartment_dict,
+                model_metabolite_to_standard_name_dict=model_metabolite_to_standard_name_dict,
+                metabolite_bare_metabolite_name_dict=metabolite_bare_metabolite_name_dict,
+                specific_flux_range_dict=specific_flux_range_dict,
+                common_mix_ratio_range=common_mix_ratio_range,
+                mix_ratio_multiplier=mix_ratio_multiplier
+                # list_of_case_name=None # None(默认值) 适用于单组实验数据情况，函数直接处理传入的 experimental_mid_data_obj_dict
+            )
+            print("mixing_equation_constructor调用成功")
+        except Exception as e:
+            print(f"mixing_equation_constructor调用失败: {e}")
+            print("使用简化的直接映射作为后备方案...")
+            
+            # 后备方案：使用简化的直接映射
+            for exp_metabolite_name in experimental_mid_data_obj_dict.keys():
+                if exp_metabolite_name in user_metabolite_to_standard_name_dict:
+                    model_metabolite = user_metabolite_to_standard_name_dict[exp_metabolite_name]
+                    if model_metabolite in complete_metabolite_dim_dict:
+                        nested_mix_equation_dict[exp_metabolite_name] = model_metabolite
+                        matched_metabolites.append((exp_metabolite_name, model_metabolite))
 
     # 调用函数后
     print(f"\n混合方程构建结果:")
@@ -1029,7 +1114,6 @@ def run_mfa_pipeline_with_experimental_data(
     
     # 尝试生成反应流量平衡约束条件
     # try:
-    # TODO:
     # del metabolite_reaction_dict_for_bal['Glu']
 
     # 这里需要重点修改
@@ -1087,48 +1171,14 @@ def run_mfa_pipeline_with_experimental_data(
 
     # 准备混合操作列表
     mix_operation_list = []
+    
+    # 对于简化的直接映射，我们不需要混合操作
+    # 只处理复杂的嵌套字典结构
     for mixed_metabolite, nested_mix_equation in nested_mix_equation_dict.items():
-        mix_op = []
-        print(f"处理混合代谢物: {mixed_metabolite}, 混合方程: {nested_mix_equation}")
-
-        # 处理简化的直接映射（字符串到字符串）
-        if isinstance(nested_mix_equation, str):
-            model_metabolite = nested_mix_equation
-            print(f"  检查简化映射组分: {model_metabolite}")
+        if isinstance(nested_mix_equation, dict):
+            print(f"处理复杂混合代谢物: {mixed_metabolite}, 混合方程: {nested_mix_equation}")
             
-            # 检查是否是流量名称
-            flux_index = flux_name_index_dict.get(model_metabolite)
-            if flux_index is None:
-                print(f"  - {model_metabolite} 不在流量索引字典中")
-                continue
-
-            # 检查碳原子数
-            carbon_num = complete_metabolite_dim_dict.get(model_metabolite)
-            if carbon_num is None:
-                print(f"  - {model_metabolite} 不在代谢物维度字典中")
-                continue
-
-            # 构造EMU名称并查找索引
-            emu_name = f"{model_metabolite}__{'1' * carbon_num}"
-            print(f"  - EMU名称: {emu_name}")
-
-            emu_index = emu_name_index_dict.get(emu_name)
-            if emu_index is None:
-                print(f"  - {emu_name} 不在EMU索引字典中")
-                # 尝试查找类似的EMU
-                similar_emus = [name for name in emu_name_index_dict.keys() if model_metabolite in name]
-                if similar_emus:
-                    print(f"  - 找到类似EMU: {similar_emus}")
-                    emu_name = similar_emus[0]
-                    emu_index = emu_name_index_dict.get(emu_name)
-                if emu_index is None:
-                    continue
-
-            print(f"  - 添加: ({flux_index}, {emu_index})")
-            mix_op.append((flux_index, emu_index))
-            
-        # 处理复杂的嵌套字典结构
-        elif isinstance(nested_mix_equation, dict):
+            mix_op = []
             for model_metabolite, coeff in nested_mix_equation.items():
                 print(f"  检查嵌套组分: {model_metabolite}, 系数: {coeff}")
                 if coeff > 0:
@@ -1163,18 +1213,15 @@ def run_mfa_pipeline_with_experimental_data(
                     print(f"  - 添加: ({flux_index}, {emu_index})")
                     mix_op.append((flux_index, emu_index))
 
-        if mix_op:
-            print(f"  成功添加混合操作: {mix_op}")
-            # 对于简化的映射，我们创建一个特殊的混合操作格式
-            if isinstance(nested_mix_equation, str):
-                # 简化映射不需要混合比例索引，直接使用 -1 或者省略
-                mix_operation_list.append((mixed_metabolite, mix_op))
-            else:
+            if mix_op:
+                print(f"  成功添加混合操作: {mix_op}")
                 # 复杂映射需要混合比例索引
                 mix_ratio_index = mix_ratio_name_index_dict.get(mixed_metabolite, 0)
                 mix_operation_list.append((mixed_metabolite, mix_ratio_index, mix_op))
+            else:
+                print(f"  警告: {mixed_metabolite}的混合操作列表为空")
         else:
-            print(f"  警告: {mixed_metabolite}的混合操作列表为空")
+            print(f"跳过简化映射代谢物: {mixed_metabolite} → {nested_mix_equation}")
 
     print(f"最终混合操作列表长度: {len(mix_operation_list)}")
 
@@ -1184,7 +1231,7 @@ def run_mfa_pipeline_with_experimental_data(
     loss_operation_list = []
 
     # 处理混合操作情况
-    if len(mix_operation_list)==0:
+    if len(mix_operation_list) > 0:
         for mix_item in mix_operation_list:
             # 处理不同格式的混合操作
             if len(mix_item) == 2:
@@ -1222,18 +1269,20 @@ def run_mfa_pipeline_with_experimental_data(
                 elif hasattr(experimental_mid_data, 'data_vector') and experimental_mid_data.data_vector is not None:
                     valid_index_array = np.arange(len(experimental_mid_data.data_vector), dtype=np.int32)
                 else:
+                    continue
                     # 如果无法获取MID列表长度，使用默认值
-                    valid_index_array = np.array([0, 1, 2, 3, 4], dtype=np.int32)  # 默认使用前5个质量同位素
+                    # valid_index_array = np.array([0, 1, 2, 3, 4], dtype=np.int32)  # 默认使用前5个质量同位素
 
                 # 添加完整的四元组
                 loss_operation_list.append(
                     [mixed_metabolite, predicted_mid_index, experimental_mid_data, valid_index_array])
                 if verbose:
                     print(
-                        f"添加完整损失操作: {mixed_metabolite}, 预测索引: {predicted_mid_index}, 有效索引数组: {valid_index_array}")
-    else:
-        # 直接使用模型代谢物预测结果的情况
-        print("没有混合操作，尝试直接使用模型预测结果...")
+                        f"添加损失操作(混合): {mixed_metabolite}, 预测索引: {predicted_mid_index}, 有效索引数组: {valid_index_array}")
+    
+    # 无论是否有混合操作，都处理直接映射的情况
+    if matched_metabolites:
+        print("处理直接映射的代谢物...")
         for exp_name, model_name in matched_metabolites:
             if exp_name in experimental_mid_data_obj_dict:
                 # 获取实验MID数据
@@ -1257,14 +1306,45 @@ def run_mfa_pipeline_with_experimental_data(
                         elif hasattr(experimental_mid_data, 'data_vector') and experimental_mid_data.data_vector is not None:
                             valid_index_array = np.arange(len(experimental_mid_data.data_vector), dtype=np.int32)
                         else:
-                            valid_index_array = np.array([0, 1, 2, 3, 4], dtype=np.int32)
+                            continue
+                            # valid_index_array = np.array([0, 1, 2, 3, 4], dtype=np.int32)
 
                         # 添加完整的四元组
                         loss_operation_list.append(
                             [exp_name, predicted_mid_index, experimental_mid_data, valid_index_array])
                         if verbose:
                             print(
-                                f"添加完整损失操作: {exp_name}, 预测索引: {predicted_mid_index}, 有效索引数组: {valid_index_array}")
+                                f"添加损失操作(直接): {exp_name}, 预测索引: {predicted_mid_index}, 有效索引数组: {valid_index_array}")
+    
+    # 如果仍然没有损失操作，尝试从nested_mix_equation_dict创建
+    if len(loss_operation_list) == 0 and nested_mix_equation_dict:
+        print("从nested_mix_equation_dict创建损失操作...")
+        for exp_name, model_name in nested_mix_equation_dict.items():
+            if isinstance(model_name, str) and exp_name in experimental_mid_data_obj_dict:
+                experimental_mid_data = experimental_mid_data_obj_dict[exp_name]
+                carbon_num = complete_metabolite_dim_dict.get(model_name)
+                if carbon_num is not None:
+                    emu_name = f"{model_name}__{'1' * carbon_num}"
+                    if emu_name in emu_name_index_dict:
+                        predicted_mid_index = emu_name_index_dict[emu_name]
+                        if isinstance(predicted_mid_index, (list, tuple)):
+                            predicted_mid_index = predicted_mid_index[0]
+                        
+                        # 创建有效索引数组
+                        if hasattr(experimental_mid_data, 'mid_list') and experimental_mid_data.mid_list is not None:
+                            valid_index_array = np.arange(len(experimental_mid_data.mid_list), dtype=np.int32)
+                        elif hasattr(experimental_mid_data, 'data_vector') and experimental_mid_data.data_vector is not None:
+                            valid_index_array = np.arange(len(experimental_mid_data.data_vector), dtype=np.int32)
+                        else:
+                            valid_index_array = np.array([0, 1, 2, 3, 4], dtype=np.int32)
+                        
+                        loss_operation_list.append(
+                            [exp_name, predicted_mid_index, experimental_mid_data, valid_index_array])
+                        if verbose:
+                            print(f"添加损失操作(nest): {exp_name}, 预测索引: {predicted_mid_index}")
+    
+    if len(loss_operation_list) == 0:
+        print("警告: 没有成功创建任何损失操作！")
 
     if verbose:
         print(f"\n操作列表构建结果:")
@@ -1318,7 +1398,7 @@ def run_mfa_pipeline_with_experimental_data(
     opt_result.fun
 
 
-    # 设置通量约束边界，这个可以用初始解的bonds
+    # 设置反应流量约束边界，这个可以用初始解的bonds
     bounds = []
     for flux_name, idx in flux_name_index_dict.items():
         if specific_flux_range_dict and flux_name in specific_flux_range_dict:
@@ -1406,8 +1486,8 @@ def run_mfa_pipeline_with_experimental_data(
     if opt_result.success:
         optimized_flux_vector = opt_result.x
         if verbose:
-            print(f"优化成功! 最终损失值: {opt_result.fun:.6f}")
-            print("\n优化后的通量值:")
+            print(f"优化成功! 最终损失值(loss): {opt_result.fun:.6f}")
+            print("\n优化后的反应流量值:")
             for flux_name, idx in flux_name_index_dict.items():
                 print(f"  {flux_name}: {optimized_flux_vector[idx]:.4f}")
     else:
@@ -1422,7 +1502,7 @@ def run_mfa_pipeline_with_experimental_data(
     # 创建最终预测数据的副本
     final_predicted_mid_data_list = [arr.copy() for arr in complete_predicted_mid_data_list]
 
-    # 使用优化后的通量值重新计算预测
+    # 使用优化后的反应流量值重新计算预测结果
     base_prediction_function(
         optimized_flux_vector,
         final_predicted_mid_data_list,
@@ -1443,11 +1523,31 @@ def run_mfa_pipeline_with_experimental_data(
         print("\n第8步: 计算预测与实验数据比较...")
 
     comparison_data = []
+    
+    # 首先打印调试信息
+    if verbose:
+        print(f"  调试信息:")
+        print(f"    - 实验代谢物数量: {len(experimental_mid_data_obj_dict)}")
+        print(f"    - 模型映射字典数量: {len(model_metabolite_to_standard_name_dict)}")
+        print(f"    - EMU索引字典数量: {len(emu_name_index_dict)}")
+        print(f"    - 完整代谢物维度字典数量: {len(complete_metabolite_dim_dict)}")
+    
     for exp_metabolite, exp_data in experimental_mid_data_obj_dict.items():
+        if verbose:
+            print(f"  处理实验代谢物: {exp_metabolite}")
+            
+        # 检查映射关系
         if exp_metabolite in model_metabolite_to_standard_name_dict:
             model_metabolite = model_metabolite_to_standard_name_dict[exp_metabolite]
-            if model_metabolite in bare_metabolite_dim_dict:
-                emu_name = f"{model_metabolite}__{'1' * bare_metabolite_dim_dict[model_metabolite]}"
+            if verbose:
+                print(f"    映射到模型代谢物: {model_metabolite}")
+            
+            # 使用complete_metabolite_dim_dict而不是bare_metabolite_dim_dict
+            if model_metabolite in complete_metabolite_dim_dict:
+                carbon_num = complete_metabolite_dim_dict[model_metabolite]
+                emu_name = f"{model_metabolite}__{'1' * carbon_num}"
+                if verbose:
+                    print(f"    构造EMU名称: {emu_name} (碳原子数: {carbon_num})")
 
                 if emu_name in emu_name_index_dict:
                     # 修复：emu_name_index_dict可能返回列表或元组，确保只取第一个索引
@@ -1455,13 +1555,36 @@ def run_mfa_pipeline_with_experimental_data(
                         predicted_mid_index = emu_name_index_dict[emu_name][0]
                     else:
                         predicted_mid_index = emu_name_index_dict[emu_name]
+                    
+                    if verbose:
+                        print(f"    预测MID索引: {predicted_mid_index}")
 
                     predicted_mid = final_predicted_mid_data_list[predicted_mid_index]
 
-                    # 确保exp_data有mid_list属性并且不为空
+                    # 尝试多种方式获取实验数据
+                    exp_mid_data = None
+                    
+                    # 方式1：尝试mid_list属性
                     if hasattr(exp_data, 'mid_list') and exp_data.mid_list is not None:
                         exp_mid_data = np.array(exp_data.mid_list)
-
+                        if verbose:
+                            print(f"    从mid_list获取实验数据，长度: {len(exp_mid_data)}")
+                    
+                    # 方式2：尝试data_vector属性
+                    elif hasattr(exp_data, 'data_vector') and exp_data.data_vector is not None:
+                        exp_mid_data = np.array(exp_data.data_vector)
+                        if verbose:
+                            print(f"    从data_vector获取实验数据，长度: {len(exp_mid_data)}")
+                    
+                    # 方式3：尝试raw_data_vector属性
+                    elif hasattr(exp_data, 'raw_data_vector') and exp_data.raw_data_vector is not None:
+                        exp_mid_data = np.array(exp_data.raw_data_vector)
+                        # 对原始数据进行归一化
+                        exp_mid_data = exp_mid_data / np.sum(exp_mid_data)
+                        if verbose:
+                            print(f"    从raw_data_vector获取实验数据并归一化，长度: {len(exp_mid_data)}")
+                    
+                    if exp_mid_data is not None and len(exp_mid_data) > 0:
                         # 确保比较长度一致
                         min_length = min(len(predicted_mid), len(exp_mid_data))
 
@@ -1475,6 +1598,24 @@ def run_mfa_pipeline_with_experimental_data(
                             'experimental_mid': exp_mid_data,
                             'RMSE': rmse
                         })
+                        
+                        if verbose:
+                            print(f"    成功添加比较数据，RMSE: {rmse:.4f}")
+                    else:
+                        if verbose:
+                            print(f"    警告: 无法获取{exp_metabolite}的实验MID数据")
+                else:
+                    if verbose:
+                        print(f"    警告: EMU名称{emu_name}不在EMU索引字典中")
+            else:
+                if verbose:
+                    print(f"    警告: 模型代谢物{model_metabolite}不在维度字典中")
+        else:
+            if verbose:
+                print(f"    警告: 实验代谢物{exp_metabolite}不在模型映射字典中")
+    
+    if verbose:
+        print(f"\n  总共生成了 {len(comparison_data)} 个比较数据项")
 
     if verbose and comparison_data:
         print("\n代谢物MID预测与实验比较:")
@@ -1483,9 +1624,11 @@ def run_mfa_pipeline_with_experimental_data(
             print(f"  RMSE: {data['RMSE']:.4f}")
             exp_mid = data['experimental_mid']
             pred_mid = data['predicted_mid']
-            print("  预测MID vs 实验MID:")
+            print("  预测优化后MID vs 质谱实验MID:")
             for i in range(min(len(exp_mid), len(pred_mid))):
                 print(f"  M+{i}: {pred_mid[i]:.4f} vs {exp_mid[i]:.4f}")
+    elif verbose:
+        print("\n警告: 没有生成任何比较数据")
 
     # 步骤9: 计算流量控制系数和敏感性分析
     if verbose:
