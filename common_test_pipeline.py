@@ -1131,6 +1131,7 @@ def run_mfa_pipeline_with_experimental_data(
         composite_reaction_dict={},    # 在这个范例一般来说没有复合反应
         flux_name_index_dict=flux_name_index_dict
     )
+    # TODO: 把v8设成50
     A_eq = flux_balance_matrix
     b_eq = flux_balance_right_side_vector
 
@@ -1330,13 +1331,14 @@ def run_mfa_pipeline_with_experimental_data(
                         if isinstance(predicted_mid_index, (list, tuple)):
                             predicted_mid_index = predicted_mid_index[0]
                         
-                        # 创建有效索引数组
-                        if hasattr(experimental_mid_data, 'mid_list') and experimental_mid_data.mid_list is not None:
-                            valid_index_array = np.arange(len(experimental_mid_data.mid_list), dtype=np.int32)
-                        elif hasattr(experimental_mid_data, 'data_vector') and experimental_mid_data.data_vector is not None:
-                            valid_index_array = np.arange(len(experimental_mid_data.data_vector), dtype=np.int32)
-                        else:
-                            valid_index_array = np.array([0, 1, 2, 3, 4], dtype=np.int32)
+                        # # 创建有效索引数组
+                        # if hasattr(experimental_mid_data, 'mid_list') and experimental_mid_data.mid_list is not None:
+                        #     valid_index_array = np.arange(len(experimental_mid_data.mid_list), dtype=np.int32)
+                        # elif hasattr(experimental_mid_data, 'data_vector') and experimental_mid_data.data_vector is not None:
+                        #     valid_index_array = np.arange(len(experimental_mid_data.data_vector), dtype=np.int32)
+                        # else:
+                        #     valid_index_array = np.array([0, 1, 2, 3, 4], dtype=np.int32)
+                        valid_index_array = ()
                         
                         loss_operation_list.append(
                             [exp_name, predicted_mid_index, experimental_mid_data, valid_index_array])
@@ -1348,8 +1350,8 @@ def run_mfa_pipeline_with_experimental_data(
 
     if verbose:
         print(f"\n操作列表构建结果:")
-        print(f"  - 混合操作数量: {len(mix_operation_list)}")
-        print(f"  - 损失操作数量: {len(loss_operation_list)}")
+        print(f"  - 混合操作数量(mix_operation_list): {len(mix_operation_list)}")
+        print(f"  - 损失操作数量(loss_operation_list): {len(loss_operation_list)}")
 
     # 步骤6: 运行SLSQP优化
     if verbose:
@@ -1382,6 +1384,7 @@ def run_mfa_pipeline_with_experimental_data(
         return loss
 
     initial_obj = objective_function(initial_flux_vector)
+    print(f"初始代谢流: {initial_flux_vector}")
     print(f"初始目标函数值: {initial_obj:.4f}")
     opt_result = run_optimization(
         objective_function=objective_function,
@@ -1395,81 +1398,83 @@ def run_mfa_pipeline_with_experimental_data(
         method='SLSQP',  # 默认使用SLSQP方法
         verbose=True  # 启动详细输出
     )
-    opt_result.fun
+    print(f"优化后代谢流: {opt_result.x}")
 
 
-    # 设置反应流量约束边界，这个可以用初始解的bonds
-    bounds = []
-    for flux_name, idx in flux_name_index_dict.items():
-        if specific_flux_range_dict and flux_name in specific_flux_range_dict:
-            min_val, max_val = specific_flux_range_dict[flux_name]
-        else:
-            min_val, max_val = 0.1, 1000.0
-        bounds.append((min_val, max_val))
-
-    # 构建线性等式约束条件
-    # A_eq @ x - b_eq
-    # 还要提供 equality constraints ( jacob constrains ) 默认等于 A_eq
-
-    # 定义线性等式约束 (A_eq * x = b_eq)
-    A_eq = flux_balance_matrix
-    b_eq = flux_balance_right_side_vector
-
-    # 定义线性不等式约束 (如果需要的话，格式为 A_ub * x <= b_ub)
-    # 示例：假设有一些流量总和约束
-    # A_ub = np.array([[1, 1, 0, ...], [0, 1, 1, ...]])  # 根据实际需求定义
-    # b_ub = np.array([upper_bound1, upper_bound2, ...])  # 对应的上界
-
-    # 创建约束条件列表
-    constraints = []
-    if (isinstance(A_eq, np.ndarray) and isinstance(b_eq, np.ndarray) and
-       A_eq.ndim == 2 and b_eq.ndim == 1 and
-       A_eq.shape[0] == b_eq.shape[0] and
-       A_eq.shape[0] > 0 and
-       (A_eq.shape[1] == len(initial_flux_vector) if len(initial_flux_vector) > 0 else A_eq.shape[1] == 0)):
-        constraints.append({
-            'type': 'eq',
-            'fun': lambda x: A_eq @ x - b_eq,
-            'jac': lambda x: A_eq
-        })
-        if verbose:
-            print(f"添加了 {A_eq.shape[0]} 个线性等式约束 (Ax-b=0). A_eq shape: {A_eq.shape}, b_eq shape: {b_eq.shape}, initial_flux_vector length: {len(initial_flux_vector)}")
-    elif verbose:
-        print(f"未添加线性等式约束。A_eq is None: {A_eq is None}, b_eq is None: {b_eq is None}")
-        if isinstance(A_eq, np.ndarray): print(f"  A_eq.ndim: {A_eq.ndim}, A_eq.shape: {A_eq.shape}")
-        if isinstance(b_eq, np.ndarray): print(f"  b_eq.ndim: {b_eq.ndim}, b_eq.shape: {b_eq.shape}")
-        if isinstance(initial_flux_vector, np.ndarray): print(f"  initial_flux_vector length: {len(initial_flux_vector)}")
-
-    # 步骤8: 运行优化
-    if verbose:
-        print("\n开始运行SLSQP优化流程...")
-
-    # 验证参数 (仍然保留这一步，确保参数格式正确)
-    # initial_flux_vector, bounds, constraints = validate_optimization_parameters(
-    #     initial_flux_vector, bounds, constraints)
-
-    # 检查 initial_flux_vector 是否为空
-    if len(initial_flux_vector) == 0:
-        if verbose:
-            print("优化中止：初始通量向量为空 (无优化变量)。")
-        # 创建一个模拟的失败优化结果对象
-        opt_result = type('OptimizationResult', (), {
-            'x': np.array([]),
-            'fun': float('inf'),
-            'success': False,
-            'message': "无优化变量，优化未执行。"
-        })()
-    else:
-        # initial_flux_vector, bounds, constraints = validate_optimization_parameters(
-        # initial_flux_vector, bounds, constraints) # Validation is inside run_optimization
-        opt_result = run_optimization(
-            objective_function=objective_function,
-            initial_flux_vector=initial_flux_vector,
-            bounds=bounds,
-            constraints=constraints,
-            method='SLSQP',  # 默认使用SLSQP方法
-            verbose=True # 启动详细输出
-        )
+    #########################################################################
+    # # 设置反应流量约束边界，这个可以用初始解的bonds
+    # bounds = []
+    # for flux_name, idx in flux_name_index_dict.items():
+    #     if specific_flux_range_dict and flux_name in specific_flux_range_dict:
+    #         min_val, max_val = specific_flux_range_dict[flux_name]
+    #     else:
+    #         min_val, max_val = 0.1, 1000.0
+    #     bounds.append((min_val, max_val))
+    #
+    # # 构建线性等式约束条件
+    # # A_eq @ x - b_eq
+    # # 还要提供 equality constraints ( jacob constrains ) 默认等于 A_eq
+    #
+    # # 定义线性等式约束 (A_eq * x = b_eq)
+    # A_eq = flux_balance_matrix
+    # b_eq = flux_balance_right_side_vector
+    #
+    # # 定义线性不等式约束 (如果需要的话，格式为 A_ub * x <= b_ub)
+    # # 示例：假设有一些流量总和约束
+    # # A_ub = np.array([[1, 1, 0, ...], [0, 1, 1, ...]])  # 根据实际需求定义
+    # # b_ub = np.array([upper_bound1, upper_bound2, ...])  # 对应的上界
+    #
+    # # 创建约束条件列表
+    # constraints = []
+    # if (isinstance(A_eq, np.ndarray) and isinstance(b_eq, np.ndarray) and
+    #    A_eq.ndim == 2 and b_eq.ndim == 1 and
+    #    A_eq.shape[0] == b_eq.shape[0] and
+    #    A_eq.shape[0] > 0 and
+    #    (A_eq.shape[1] == len(initial_flux_vector) if len(initial_flux_vector) > 0 else A_eq.shape[1] == 0)):
+    #     constraints.append({
+    #         'type': 'eq',
+    #         'fun': lambda x: A_eq @ x - b_eq,
+    #         'jac': lambda x: A_eq
+    #     })
+    #     if verbose:
+    #         print(f"添加了 {A_eq.shape[0]} 个线性等式约束 (Ax-b=0). A_eq shape: {A_eq.shape}, b_eq shape: {b_eq.shape}, initial_flux_vector length: {len(initial_flux_vector)}")
+    # elif verbose:
+    #     print(f"未添加线性等式约束。A_eq is None: {A_eq is None}, b_eq is None: {b_eq is None}")
+    #     if isinstance(A_eq, np.ndarray): print(f"  A_eq.ndim: {A_eq.ndim}, A_eq.shape: {A_eq.shape}")
+    #     if isinstance(b_eq, np.ndarray): print(f"  b_eq.ndim: {b_eq.ndim}, b_eq.shape: {b_eq.shape}")
+    #     if isinstance(initial_flux_vector, np.ndarray): print(f"  initial_flux_vector length: {len(initial_flux_vector)}")
+    #
+    # # 步骤8: 运行优化
+    # if verbose:
+    #     print("\n开始运行SLSQP优化流程...")
+    #
+    # # 验证参数 (仍然保留这一步，确保参数格式正确)
+    # # initial_flux_vector, bounds, constraints = validate_optimization_parameters(
+    # #     initial_flux_vector, bounds, constraints)
+    #
+    # # 检查 initial_flux_vector 是否为空
+    # if len(initial_flux_vector) == 0:
+    #     if verbose:
+    #         print("优化中止：初始通量向量为空 (无优化变量)。")
+    #     # 创建一个模拟的失败优化结果对象
+    #     opt_result = type('OptimizationResult', (), {
+    #         'x': np.array([]),
+    #         'fun': float('inf'),
+    #         'success': False,
+    #         'message': "无优化变量，优化未执行。"
+    #     })()
+    # else:
+    #     # initial_flux_vector, bounds, constraints = validate_optimization_parameters(
+    #     # initial_flux_vector, bounds, constraints) # Validation is inside run_optimization
+    #     opt_result = run_optimization(
+    #         objective_function=objective_function,
+    #         initial_flux_vector=initial_flux_vector,
+    #         bounds=bounds,
+    #         constraints=constraints,
+    #         method='SLSQP',  # 默认使用SLSQP方法
+    #         verbose=True # 启动详细输出
+    #     )
+    #########################################################################
 
     # 记录优化结果
     optimized_flux_vector = opt_result.x
