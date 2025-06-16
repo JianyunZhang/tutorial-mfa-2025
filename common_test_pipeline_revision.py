@@ -31,57 +31,57 @@ def setup_tca_network_from_paper():
     # 根据论文，构建TCA循环的关键反应
     # 反应1: OAC + AcCoA → Cit (碳原子转换: abcd + ef → dcbfea)
     v1 = Reaction(id='v1',
-                  sub=[Node(name='OAC', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd']),
-                       Node(name='AcCoA', coefficient=1, carbon_composition_string=['e', 'f'])],
-                  pro=[Node(name='Cit', coefficient=1, carbon_composition_string=['d', 'c', 'b', 'f', 'e', 'a'])],
-                  reverse=False)
+                 sub=[Node(name='OAC', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd']),
+                      Node(name='AcCoA', coefficient=1, carbon_composition_string=['e', 'f'])],
+                 pro=[Node(name='Cit', coefficient=1, carbon_composition_string=['d', 'c', 'b', 'f', 'e', 'a'])],
+                 reverse=False)
 
     # 反应2: Cit → AKG + CO2 (碳原子转换: abcdef → abcde + f)
     v2 = Reaction(id='v2',
-                  sub=[Node(name='Cit', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd', 'e', 'f'])],
-                  pro=[Node(name='AKG', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd', 'e']),
-                       Node(name='CO2', coefficient=1, carbon_composition_string=['f'])],
-                  reverse=False)
+                 sub=[Node(name='Cit', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd', 'e', 'f'])],
+                 pro=[Node(name='AKG', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd', 'e']),
+                      Node(name='CO2', coefficient=1, carbon_composition_string=['f'])],
+                 reverse=False)
 
     # 反应3: AKG → Glu
     v3 = Reaction(id='v3',
-                  sub=[Node(name='AKG', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd', 'e'])],
-                  pro=[Node(name='Glu', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd', 'e'])],
-                  reverse=False)
+                 sub=[Node(name='AKG', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd', 'e'])],
+                 pro=[Node(name='Glu', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd', 'e'])],
+                 reverse=False)
 
     # 反应4: AKG → Suc + CO2
     v4 = Reaction(id='v4',
-                  sub=[Node(name='AKG', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd', 'e'])],
-                  pro=[Node(name='Suc', coefficient=1, carbon_composition_string=['b', 'c', 'd', 'e']),
-                       Node(name='CO2', coefficient=1, carbon_composition_string=['a'])],
-                  reverse=False)
+                 sub=[Node(name='AKG', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd', 'e'])],
+                 pro=[Node(name='Suc', coefficient=1, carbon_composition_string=['b', 'c', 'd', 'e']),
+                      Node(name='CO2', coefficient=1, carbon_composition_string=['a'])],
+                 reverse=False)
 
     # 反应5: Suc → Fum (考虑碳原子对称性)
     v5 = Reaction(id='v5',
-                  sub=[Node(name='Suc', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd'])],
-                  pro=[Node(name='Fum', coefficient=0.5, carbon_composition_string=['a', 'b', 'c', 'd']),
-                       Node(name='Fum', coefficient=0.5, carbon_composition_string=['d', 'c', 'b', 'a'])],
-                  reverse=False)
+                 sub=[Node(name='Suc', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd'])],
+                 pro=[Node(name='Fum', coefficient=0.5, carbon_composition_string=['a', 'b', 'c', 'd']),
+                      Node(name='Fum', coefficient=0.5, carbon_composition_string=['d', 'c', 'b', 'a'])],
+                 reverse=False)
 
     # 反应6: Fum → OAC
     v6 = Reaction(id='v6',
-                  sub=[Node(name='Fum', coefficient=0.5, carbon_composition_string=['a', 'b', 'c', 'd']),
-                       Node(name='Fum', coefficient=0.5, carbon_composition_string=['d', 'c', 'b', 'a'])],
-                  pro=[Node(name='OAC', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd'])],
-                  reverse=False)
+                 sub=[Node(name='Fum', coefficient=0.5, carbon_composition_string=['a', 'b', 'c', 'd']),
+                      Node(name='Fum', coefficient=0.5, carbon_composition_string=['d', 'c', 'b', 'a'])],
+                 pro=[Node(name='OAC', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd'])],
+                 reverse=False)
 
     # 反应7: OAC → Fum
     v7 = Reaction(id='v7',
-                  sub=[Node(name='OAC', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd'])],
-                  pro=[Node(name='Fum', coefficient=0.5, carbon_composition_string=['a', 'b', 'c', 'd']),
-                       Node(name='Fum', coefficient=0.5, carbon_composition_string=['d', 'c', 'b', 'a'])],
-                  reverse=False)
+                 sub=[Node(name='OAC', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd'])],
+                 pro=[Node(name='Fum', coefficient=0.5, carbon_composition_string=['a', 'b', 'c', 'd']),
+                      Node(name='Fum', coefficient=0.5, carbon_composition_string=['d', 'c', 'b', 'a'])],
+                 reverse=False)
 
     # 反应8: Asp → OAC
     v8 = Reaction(id='v8',
-                  sub=[Node(name='Asp', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd'])],
-                  pro=[Node(name='OAC', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd'])],
-                  reverse=False)
+                 sub=[Node(name='Asp', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd'])],
+                 pro=[Node(name='OAC', coefficient=1, carbon_composition_string=['a', 'b', 'c', 'd'])],
+                 reverse=False)
 
     # 构建代谢物反应字典
     metabolite_reaction_dict = {
@@ -134,7 +134,7 @@ def setup_tca_network_from_paper():
         'v5': 4,
         'v6': 5,
         'v7': 6,
-        'v8': 7,
+        'v8': 7
     }
 
     return metabolite_reaction_dict, flux_balance_reaction_dict, complete_metabolite_dim_dict, flux_name_index_dict
@@ -142,147 +142,29 @@ def setup_tca_network_from_paper():
 
 def create_simulated_experimental_data():
     """
-    根据论文DOI:10.1016/j.ymben.2006.09.001数据创建模拟的质谱实验数据
-    基于TCA循环的13C标记实验数据，包含主要TCA循环中间代谢物
+    根据论文数据创建模拟的质谱实验数据
+    基于TCA循环的13C标记实验数据
     """
     experimental_mid_data_obj_dict = {}
     
-    # 基于论文数据的TCA循环中间代谢物MID分布
-    # 使用[1,2-13C2]乙酰CoA标记实验的典型数据
-    
-    # 1. Glutamate (主要产物，C5化合物)
+    # 模拟Glu的质谱实验数据 (基于论文中的TCA循环13C标记实验)
+    # 创建模拟的MID数据 - 基于[1,2-13C2]乙酰CoA标记实验
     glu_mid_data = MIDData(
         raw_name='glutamate',
         raw_data_list=[0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039],  # M+0到M+5的分布
         compartment_list=['c'],  # 细胞质区室
         tissue_list=['default']  # 默认组织
     )
-    glu_mid_data.mid_list = [0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039]
+    glu_mid_data.mid_list = [0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039]  # M+0到M+5的分布
     glu_mid_data.data_vector = np.array(glu_mid_data.mid_list)
     glu_mid_data.name = 'glutamate'
+    
     experimental_mid_data_obj_dict['glutamate'] = glu_mid_data
     
-    # # 2. Citrate (柠檬酸，C6化合物)
-    # cit_mid_data = MIDData(
-    #     raw_name='citrate',
-    #     raw_data_list=[0.2845, 0.1932, 0.2156, 0.1723, 0.0987, 0.0357],  # M+0到M+5的分布
-    #     compartment_list=['c'],
-    #     tissue_list=['default']
-    # )
-    # cit_mid_data.mid_list = [0.2845, 0.1932, 0.2156, 0.1723, 0.0987, 0.0357]
-    # cit_mid_data.data_vector = np.array(cit_mid_data.mid_list)
-    # cit_mid_data.name = 'citrate'
-    # experimental_mid_data_obj_dict['citrate'] = cit_mid_data
-    
-    # # 3. α-Ketoglutarate (α-酮戊二酸，C5化合物)
-    # akg_mid_data = MIDData(
-    #     raw_name='alpha_ketoglutarate',
-    #     raw_data_list=[0.3721, 0.2534, 0.2298, 0.0934, 0.0423, 0.0090],  # M+0到M+4的分布
-    #     compartment_list=['m'],  # 线粒体区室
-    #     tissue_list=['default']
-    # )
-    # akg_mid_data.mid_list = [0.3721, 0.2534, 0.2298, 0.0934, 0.0423, 0.0090]
-    # akg_mid_data.data_vector = np.array(akg_mid_data.mid_list)
-    # akg_mid_data.name = 'alpha_ketoglutarate'
-    # experimental_mid_data_obj_dict['alpha_ketoglutarate'] = akg_mid_data
-    
-    # 4. Succinate (琥珀酸，C4化合物)
-    # suc_mid_data = MIDData(
-    #     raw_name='succinate',
-    #     raw_data_list=[0.4523, 0.2187, 0.2098, 0.0876, 0.0316],  # M+0到M+4的分布
-    #     compartment_list=['m'],
-    #     tissue_list=['default']
-    # )
-    # suc_mid_data.mid_list = [0.4523, 0.2187, 0.2098, 0.0876, 0.0316]
-    # suc_mid_data.data_vector = np.array(suc_mid_data.mid_list)
-    # suc_mid_data.name = 'succinate'
-    # experimental_mid_data_obj_dict['succinate'] = suc_mid_data
-    
-    # # 5. Malate (苹果酸，C4化合物)
-    # mal_mid_data = MIDData(
-    #     raw_name='malate',
-    #     raw_data_list=[0.4198, 0.2534, 0.1987, 0.0998, 0.0283],  # M+0到M+4的分布
-    #     compartment_list=['m'],
-    #     tissue_list=['default']
-    # )
-    # mal_mid_data.mid_list = [0.4198, 0.2534, 0.1987, 0.0998, 0.0283]
-    # mal_mid_data.data_vector = np.array(mal_mid_data.mid_list)
-    # mal_mid_data.name = 'malate'
-    # experimental_mid_data_obj_dict['malate'] = mal_mid_data
-    
-    # 6. Fumarate (延胡索酸，C4化合物)
-    fum_mid_data = MIDData(
-        raw_name='fumarate',
-        raw_data_list=[0.5698, 0.2698, 0.1385, 0.0219, 0.0000],  # M+0到M+4的分布
-        compartment_list=['m'],
-        tissue_list=['default']
-    )
-    fum_mid_data.mid_list = [0.5698, 0.2698, 0.1385, 0.0219, 0.0000]
-    fum_mid_data.data_vector = np.array(fum_mid_data.mid_list)
-    fum_mid_data.name = 'fumarate'
-    experimental_mid_data_obj_dict['fumarate'] = fum_mid_data
+    # 如果需要更多代谢物的实验数据，可以在这里添加
+    # 例如琥珀酸、柠檬酸等的MID数据
     
     return experimental_mid_data_obj_dict
-
-
-def manual_model_preprocess():
-    """
-    手动定义预处理后的模型数据，不使用model_preprocess函数
-    基于TCA循环网络的预处理结果
-    """
-    # 设置TCA网络
-    metabolite_reaction_dict, flux_balance_reaction_dict, complete_metabolite_dim_dict, flux_name_index_dict = setup_tca_network_from_paper()
-    
-    # 手动定义预处理后的数据结构
-    processed_model = {
-        'metabolite_reaction_dict': metabolite_reaction_dict,
-        'input_metabolite_name_set': {'AcCoA', 'Asp'},
-        'complete_metabolite_dim_dict': complete_metabolite_dim_dict,
-        'flux_name_index_dict': flux_name_index_dict,
-        
-        # 添加预处理后的额外信息
-        'symmetrical_metabolite_set': {'Suc', 'Fum'},
-        'balance_excluded_metabolite_set': {'CO2'},
-        'emu_excluded_metabolite_set': {'CO2'},
-        
-        # 代谢物索引映射
-        'metabolite_name_index_dict': {
-            'Asp': 0, 'AcCoA': 1, 'Cit': 2, 'AKG': 3, 
-            'Suc': 4, 'Fum': 5, 'OAC': 6, 'Glu': 7, 'CO2': 8
-        },
-        
-        # 反应索引映射  
-        'reaction_name_index_dict': {
-            'v1': 0, 'v2': 1, 'v3': 2, 'v4': 3,
-            'v5': 4, 'v6': 5, 'v7': 6, 'v8': 7
-        },
-        
-        # 输入代谢物的EMU大小字典
-        'input_metabolite_emu_size_dict': {
-            'AcCoA': [1, 2],  # 2个碳原子
-            'Asp': [1, 2, 3, 4]  # 4个碳原子
-        },
-        
-        # 目标代谢物的EMU大小字典
-        'target_metabolite_emu_size_dict': {
-            'Glu': [1, 2, 3, 4, 5],  # 5个碳原子
-            'Cit': [1, 2, 3, 4, 5, 6],  # 6个碳原子
-            'AKG': [1, 2, 3, 4, 5],  # 5个碳原子
-            'Suc': [1, 2, 3, 4],  # 4个碳原子
-            'Fum': [1, 2, 3, 4]   # 4个碳原子
-        },
-        
-        # 流量平衡矩阵相关信息
-        'flux_balance_metabolite_set': {'OAC', 'Cit', 'AKG', 'Suc', 'Fum'},
-        
-        # 代谢物区室信息
-        'metabolite_compartment_dict': {
-            'Asp': 'c', 'AcCoA': 'm', 'Cit': 'm', 'AKG': 'm',
-            'Suc': 'm', 'Fum': 'm', 'OAC': 'm', 'Glu': 'c', 'CO2': 'm'
-        }
-    }
-    
-    return processed_model
 
 
 def run_optimization_with_constraints(
@@ -306,22 +188,33 @@ def run_optimization_with_constraints(
                 'fun': lambda x: flux_balance_matrix @ x - flux_balance_rhs,
                 'jac': lambda x: flux_balance_matrix
             })
+    
+    try:
+        result = minimize(
+            objective_function,
+            initial_flux_vector,
+            method='SLSQP',
+            bounds=flux_bounds,
+            constraints=constraints,
+            options={
+                'disp': verbose,
+                'maxiter': 2000,
+                'ftol': 1e-10
+            }
+        )
+        return result
+    except Exception as e:
+        if verbose:
+            print(f"优化失败: {e}")
+        # 返回失败的结果对象
+        return type('Result', (), {
+            'success': False,
+            'message': str(e),
+            'x': initial_flux_vector,
+            'fun': float('inf')
+        })()
 
-    result = minimize(
-        objective_function,
-        initial_flux_vector,
-        method='SLSQP',
-        bounds=flux_bounds,
-        constraints=constraints,
-        options={
-            'disp': verbose,
-            'maxiter': 2000,
-            'ftol': 1e-10
-        }
-    )
-    return result
-
-#TODO: model_preprocess 处理模型 - 改为手动定义
+#TODO: model_preprocess 处理模型
 
 #TODO：加载实验数据（模拟实验数据即可），包括target_metabolites MID与input metabolites ratio list
 
@@ -343,13 +236,30 @@ def common_test_pipeline():
     """
     print("启动基于论文TCA实验数据的代谢通量分析(MFA)流程...\n")
     
-    # TODO 1: model_preprocess 处理模型 - 改为手动定义
-    print("步骤1: 手动定义预处理后的模型数据...")
+    # TODO 1: model_preprocess 处理模型
+    print("步骤1: 模型预处理...")
     
-    # 手动预处理模型，不使用model_preprocess函数
-    processed_model = manual_model_preprocess()
+    # 设置TCA网络
+    metabolite_reaction_dict, flux_balance_reaction_dict, complete_metabolite_dim_dict, flux_name_index_dict = setup_tca_network_from_paper()
     
-    # 获取预处理后的数据
+    # 设置输入代谢物
+    input_metabolite_name_set = {'AcCoA', 'Asp'}
+    
+    # 预处理模型
+    symmetrical_metabolite_set = {'Suc', 'Fum'}
+    balance_excluded_metabolite_set = {'CO2'}
+    
+    processed_model = model_preprocess(
+        metabolite_reaction_dict,
+        input_metabolite_name_set,
+        complete_metabolite_dim_dict,
+        flux_name_index_dict,
+        symmetrical_metabolite_set=symmetrical_metabolite_set,
+        emu_excluded_metabolite_set=balance_excluded_metabolite_set,
+        balance_excluded_metabolite_set=balance_excluded_metabolite_set,
+    )
+    
+    # 更新预处理后的数据
     metabolite_reaction_dict = processed_model['metabolite_reaction_dict']
     input_metabolite_name_set = processed_model['input_metabolite_name_set']
     complete_metabolite_dim_dict = processed_model['complete_metabolite_dim_dict']
@@ -358,16 +268,15 @@ def common_test_pipeline():
     print(f"  - 代谢物数量: {len(metabolite_reaction_dict)}")
     print(f"  - 输入代谢物: {input_metabolite_name_set}")
     print(f"  - 反应流量数: {len(flux_name_index_dict)}")
-    print(f"  - 手动预处理完成")
     
-    # TODO 2: 加载实验数据（包含TCA循环中间代谢物），包括target_metabolites MID与input metabolites ratio list
-    print("\n步骤2: 加载包含TCA循环中间代谢物的实验数据...")
+    # TODO 2: 加载实验数据（模拟实验数据），包括target_metabolites MID与input metabolites ratio list
+    print("\n步骤2: 加载实验数据...")
     
-    # 创建包含TCA循环中间代谢物的模拟质谱实验数据
+    # 创建模拟质谱实验数据
     experimental_mid_data_obj_dict = create_simulated_experimental_data()
     
-    # 设置目标代谢物（包含TCA循环中间代谢物）
-    target_metabolite_name_list = ['Glu', 'Cit', 'AKG', 'Suc', 'Fum']
+    # 设置目标代谢物
+    target_metabolite_name_list = ['Glu']
     
     # 设置输入代谢物标记模式 - 基于论文的[1,2-13C2]乙酰CoA标记实验
     input_metabolite_dict = {
@@ -387,9 +296,7 @@ def common_test_pipeline():
         ]
     }
     
-    print(f"  - 实验数据包含 {len(experimental_mid_data_obj_dict)} 个代谢物:")
-    for metabolite_name in experimental_mid_data_obj_dict.keys():
-        print(f"    * {metabolite_name}")
+    print(f"  - 实验数据包含 {len(experimental_mid_data_obj_dict)} 个代谢物")
     print(f"  - 目标代谢物: {target_metabolite_name_list}")
     
     # TODO 3: EMU matrix与EMU graph构建(operation_list)
@@ -417,7 +324,7 @@ def common_test_pipeline():
     
     print(f"  - 矩阵方程数量: {len(emu_matrix_equations)}")
     
-    # 构建所有目标代谢物的EMU名称列表
+    # 构建EMU图
     target_emu_name_list = []
     all_target_metabolite_emu_name_list = []
     
@@ -427,7 +334,6 @@ def common_test_pipeline():
         target_emu_name_list.append(full_emu_name)
         all_target_metabolite_emu_name_list.append(full_emu_name)
     
-    # 构建EMU图
     graph_results = emu_graph_constructor_optimized_pure_python(
         emu_matrix_equations,
         flux_name_index_dict,
@@ -436,25 +342,19 @@ def common_test_pipeline():
         all_target_metabolite_emu_name_list
     )
     
-    print(f"  - EMU图构建完成，包含{len(target_emu_name_list)}个目标EMU")
+    print(f"  - EMU图构建完成")
     
     # TODO 4: loss_operation_list构建
-    print("\n步骤4: 构建包含TCA循环中间代谢物的损失操作列表...")
+    print("\n步骤4: 构建损失操作列表...")
     
     # 获取EMU图结果
     input_emu_data_list = graph_results[0]
     operation_list = graph_results[1]
     emu_name_index_dict = graph_results[3]
     
-    # 构建损失操作列表，包含所有TCA循环中间代谢物
+    # 构建损失操作列表
     loss_operation_list = []
-    user_metabolite_to_standard_name_dict = {
-        'glutamate': 'Glu',
-        'citrate': 'Cit', 
-        'alpha_ketoglutarate': 'AKG',
-        'succinate': 'Suc',
-        'fumarate': 'Fum'
-    }
+    user_metabolite_to_standard_name_dict = {'glutamate': 'Glu'}
     
     for exp_metabolite, exp_data in experimental_mid_data_obj_dict.items():
         if exp_metabolite in user_metabolite_to_standard_name_dict:
@@ -474,9 +374,8 @@ def common_test_pipeline():
                     loss_operation_list.append([
                         exp_metabolite, predicted_mid_index, exp_mid_array, valid_index_array
                     ])
-                    print(f"    * 添加{exp_metabolite} ({model_metabolite}) 损失操作")
     
-    print(f"  - 总损失操作数量: {len(loss_operation_list)}")
+    print(f"  - 损失操作数量: {len(loss_operation_list)}")
     
     # TODO 5: base_prediction_function构建
     print("\n步骤5: 构建基础预测函数...")
@@ -503,13 +402,15 @@ def common_test_pipeline():
         composite_reaction_dict={},
         flux_name_index_dict=flux_name_index_dict
     )
+    # flux_balance_matrix = np.vstack([flux_balance_matrix, np.zeros((1, flux_balance_matrix.shape[1]))])
+    # flux_balance_right_side_vector = np.concatenate([flux_balance_right_side_vector, np.array([50.0])])
     
     # 设置通量边界（包括v8的特殊值，基于论文数据v8=50）
     flux_bounds = []
     for flux_name, idx in flux_name_index_dict.items():
         if flux_name == 'v8':
             # v8设置为固定值50（基于论文实验数据）
-            flux_bounds.append((49.9, 50.1))  # 设置一个小范围以允许数值误差
+            flux_bounds.append((49.9, 50.1))
         else:
             flux_bounds.append((0.01, 1000.0))
     
@@ -589,7 +490,7 @@ def common_test_pipeline():
         optimized_obj = initial_obj
         print(f"  - 优化失败，使用初始值")
     
-    # TODO 9: 结果展示与输出（包含TCA循环中间代谢物分析）
+    # TODO 9: 结果展示与输出
     print("\n步骤9: 结果展示与输出...")
     
     print("\n=== 流量分析结果 ===")
@@ -604,11 +505,8 @@ def common_test_pipeline():
     final_predicted_mid_data_list = [arr.copy() for arr in complete_predicted_mid_data_list]
     base_prediction_function(optimized_flux_vector, final_predicted_mid_data_list, operation_list)
     
-    # 与实验数据比较（包含所有TCA循环中间代谢物）
-    print("\n=== 预测vs实验数据比较（TCA循环中间代谢物）===")
-    total_rmse = 0
-    metabolite_count = 0
-    
+    # 与实验数据比较
+    print("\n=== 预测vs实验数据比较 ===")
     for exp_metabolite, exp_data in experimental_mid_data_obj_dict.items():
         if exp_metabolite in user_metabolite_to_standard_name_dict:
             model_metabolite = user_metabolite_to_standard_name_dict[exp_metabolite]
@@ -626,8 +524,6 @@ def common_test_pipeline():
                     # 计算RMSE
                     min_length = min(len(predicted_mid), len(experimental_mid))
                     rmse = np.sqrt(np.mean((predicted_mid[:min_length] - np.array(experimental_mid[:min_length])) ** 2))
-                    total_rmse += rmse
-                    metabolite_count += 1
                     
                     print(f"\n{exp_metabolite} (模型: {model_metabolite}):")
                     print(f"  RMSE: {rmse:.4f}")
@@ -636,15 +532,11 @@ def common_test_pipeline():
                     for i in range(min_length):
                         print(f"  M+{i}: {predicted_mid[i]:.4f}  {experimental_mid[i]:.4f}")
     
-    average_rmse = total_rmse / metabolite_count if metabolite_count > 0 else 0
-    
     print(f"\n=== 分析总结 ===")
     print(f"初始目标函数值: {initial_obj:.6f}")
     print(f"优化后目标函数值: {optimized_obj:.6f}")
     print(f"改进程度: {((initial_obj - optimized_obj) / initial_obj * 100):.2f}%")
     print(f"优化状态: {'成功' if opt_result.success else '失败'}")
-    print(f"TCA循环中间代谢物平均RMSE: {average_rmse:.4f}")
-    print(f"分析的代谢物数量: {metabolite_count}")
     
     # 返回结果字典
     results = {
@@ -657,13 +549,10 @@ def common_test_pipeline():
         'predicted_mid_data': final_predicted_mid_data_list,
         'experimental_mid_data': experimental_mid_data_obj_dict,
         'target_emu_name_list': target_emu_name_list,
-        'average_rmse': average_rmse,
-        'metabolite_count': metabolite_count,
-        'tca_intermediates_analysis': True
+        'rmse_data': {}
     }
     
     print("\n代谢通量分析流程完成!")
-    print(f"成功分析了包含{len(experimental_mid_data_obj_dict)}个TCA循环中间代谢物的质谱数据")
     return results
 
     #TODO: 结果展示与输出
